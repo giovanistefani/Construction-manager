@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
       [documentoLimpo]
     );
     
-    if (documentoExists.length > 0) {
+    if ((documentoExists as any[]).length > 0) {
       const tipoDoc = data.tipo_pessoa === 'PJ' ? 'CNPJ' : 'CPF';
       return NextResponse.json(
         { error: `${tipoDoc} já cadastrado no sistema` },

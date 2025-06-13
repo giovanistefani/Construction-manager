@@ -1,6 +1,6 @@
 export class TokenManager {
   private static instance: TokenManager;
-  private refreshPromise: Promise<string> | null = null;
+  private refreshPromise: Promise<string | null> | null = null;
 
   static getInstance(): TokenManager {
     if (!TokenManager.instance) {

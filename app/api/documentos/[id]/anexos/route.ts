@@ -7,7 +7,7 @@ import path from 'path';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -18,10 +18,11 @@ export async function POST(
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
 
+    const resolvedParams = await params;
     // Verificar se documento existe e pertence à empresa
     const [documentCheck] = await mysql.execute(
       'SELECT documento_id FROM DocumentoCobranca WHERE documento_id = ? AND empresa_id = ?',
-      [params.id, decoded.empresa_id]
+      [resolvedParams.id, decoded.empresa_id]
     );
 
     if ((documentCheck as any[]).length === 0) {
@@ -53,7 +54,7 @@ export async function POST(
                       file.type === 'image/png' ? 'PNG' : 'XML';
 
     // Criar diretório se não existir
-    const uploadDir = path.join(process.cwd(), 'uploads', 'documentos', params.id);
+    const uploadDir = path.join(process.cwd(), 'uploads', 'documentos', resolvedParams.id);
     await mkdir(uploadDir, { recursive: true });
 
     // Gerar nome único para o arquivo
@@ -67,7 +68,7 @@ export async function POST(
     await writeFile(filePath, buffer);
 
     // Salvar no banco
-    const relativePath = `uploads/documentos/${params.id}/${fileName}`;
+    const relativePath = `uploads/documentos/${resolvedParams.id}/${fileName}`;
     const tamanhoMB = file.size / (1024 * 1024);
 
     await mysql.execute(
@@ -77,7 +78,7 @@ export async function POST(
       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         anexo_id,
-        params.id,
+        resolvedParams.id,
         file.name,
         tipoArquivo,
         relativePath,
@@ -102,7 +103,7 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -113,10 +114,11 @@ export async function GET(
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
 
+    const resolvedParams = await params;
     // Verificar se documento existe e pertence à empresa
     const [documentCheck] = await mysql.execute(
       'SELECT documento_id FROM DocumentoCobranca WHERE documento_id = ? AND empresa_id = ?',
-      [params.id, decoded.empresa_id]
+      [resolvedParams.id, decoded.empresa_id]
     );
 
     if ((documentCheck as any[]).length === 0) {
@@ -131,7 +133,7 @@ export async function GET(
       INNER JOIN Usuario u ON a.usuario_upload_id = u.usuario_id
       WHERE a.documento_id = ?
       ORDER BY a.data_upload DESC`,
-      [params.id]
+      [resolvedParams.id]
     );
 
     return NextResponse.json({ anexos });

@@ -22,8 +22,7 @@ export async function POST(request: NextRequest) {
 
     // Validações básicas
     if (!data.fornecedor_id || !data.tipo_documento || !data.numero_documento || 
-        !data.data_emissao || !data.data_vencimento || !data.valor_bruto || 
-        !data.descricao_historico) {
+        !data.data_emissao || !data.valor_bruto || !data.descricao_historico) {
       return NextResponse.json({ erro: 'Campos obrigatórios não preenchidos' }, { status: 400 });
     }
 
@@ -31,7 +30,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ erro: 'Valor bruto deve ser maior que zero' }, { status: 400 });
     }
 
-    if (new Date(data.data_vencimento) < new Date(data.data_emissao)) {
+    // Permitir data de vencimento vazia (opcional)
+
+    // Validar data de vencimento apenas se foi preenchida
+    if (data.data_vencimento && new Date(data.data_vencimento) < new Date(data.data_emissao)) {
       return NextResponse.json({ erro: 'Data de vencimento deve ser igual ou posterior à data de emissão' }, { status: 400 });
     }
 
@@ -73,7 +75,7 @@ export async function POST(request: NextRequest) {
         data.tipo_documento,
         data.numero_documento,
         data.data_emissao,
-        data.data_vencimento,
+        data.data_vencimento || null,
         data.valor_bruto,
         data.descricao_historico,
         usuario_id,

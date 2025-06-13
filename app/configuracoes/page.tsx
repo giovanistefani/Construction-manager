@@ -89,7 +89,6 @@ export default function PaginaConfiguracoes() {
 
         // Verificar status da sessão
         const lembrarMe = localStorage.getItem('lembrarMe') === 'true';
-        const token = localStorage.getItem('token');
         let tokenExpiraEm;
         
         if (token) {

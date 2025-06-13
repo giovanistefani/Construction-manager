@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
 
     const [usuarios] = await mysql.execute(usuariosQuery, queryParams);
     const [countResult] = await mysql.execute(countQuery, queryParams);
-    const total = countResult[0]?.total || 0;
+    const total = (countResult as any[])[0]?.total || 0;
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({

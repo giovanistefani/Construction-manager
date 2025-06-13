@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validar refresh token
-    let decoded;
+    let decoded: any;
     try {
       decoded = jwt.verify(refreshToken, process.env.JWT_SECRET || 'default-secret');
     } catch {

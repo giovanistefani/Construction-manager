@@ -70,7 +70,7 @@ export interface CreateDocumentoCobrancaData {
   tipo_documento: TipoDocumento;
   numero_documento: string;
   data_emissao: string;
-  data_vencimento: string;
+  data_vencimento?: string;
   valor_bruto: number;
   descricao_historico: string;
   codigo_barras_boleto?: string;
@@ -99,6 +99,7 @@ export interface XMLImportData {
   fornecedor_cnpj: string;
   numero_documento: string;
   data_emissao: string;
+  data_vencimento?: string;
   valor_bruto: number;
   descricao_historico: string;
 }

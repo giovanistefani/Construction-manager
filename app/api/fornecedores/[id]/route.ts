@@ -6,9 +6,9 @@ import { validarCNPJ, validarCPF, validarEmail, validarTelefone, validarCEP, val
 import { TIPOS_FORNECEDOR, REGIMES_TRIBUTARIOS } from '@/types/fornecedor';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       [resolvedParams.id, empresa_id]
     );
 
-    if (fornecedor.length === 0) {
+    if ((fornecedor as any[]).length === 0) {
       return NextResponse.json(
         { error: 'Fornecedor não encontrado' },
         { status: 404 }
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     return NextResponse.json({
-      fornecedor: fornecedor[0]
+      fornecedor: (fornecedor as any[])[0]
     });
 
   } catch (error) {
@@ -98,7 +98,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       [resolvedParams.id, empresa_id]
     );
 
-    if (fornecedorExists.length === 0) {
+    if ((fornecedorExists as any[]).length === 0) {
       return NextResponse.json(
         { error: 'Fornecedor não encontrado' },
         { status: 404 }
@@ -223,7 +223,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       [documentoLimpo, resolvedParams.id, empresa_id]
     );
     
-    if (documentoExists.length > 0) {
+    if ((documentoExists as any[]).length > 0) {
       const tipoDoc = data.tipo_pessoa === 'PJ' ? 'CNPJ' : 'CPF';
       return NextResponse.json(
         { error: `${tipoDoc} já cadastrado no sistema` },
@@ -344,7 +344,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       [resolvedParams.id, empresa_id]
     );
 
-    if (fornecedorExists.length === 0) {
+    if ((fornecedorExists as any[]).length === 0) {
       return NextResponse.json(
         { error: 'Fornecedor não encontrado' },
         { status: 404 }
@@ -412,7 +412,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       [resolvedParams.id, empresa_id]
     );
 
-    if (fornecedorExists.length === 0) {
+    if ((fornecedorExists as any[]).length === 0) {
       return NextResponse.json(
         { error: 'Fornecedor não encontrado' },
         { status: 404 }

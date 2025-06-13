@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         nomeUsuario: usuario.nomeUsuario 
       },
       process.env.JWT_SECRET || 'default-secret',
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      { expiresIn: '7d' }
     );
 
     return NextResponse.json({

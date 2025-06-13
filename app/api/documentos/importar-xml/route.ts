@@ -11,7 +11,11 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { usuarioId: string; empresaId: string };
+    
+    if (!decoded.empresaId) {
+      return NextResponse.json({ erro: 'Token inválido: empresaId não encontrado' }, { status: 401 });
+    }
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -39,7 +43,7 @@ export async function POST(request: NextRequest) {
     if (xmlData.fornecedor_cnpj) {
       const [fornecedorResult] = await mysql.execute(
         'SELECT fornecedor_id FROM Fornecedor WHERE cnpj = ? AND empresa_id = ?',
-        [xmlData.fornecedor_cnpj, decoded.empresa_id]
+        [xmlData.fornecedor_cnpj, decoded.empresaId]
       );
 
       if ((fornecedorResult as any[]).length > 0) {
@@ -68,23 +72,45 @@ function parseXMLBasic(xmlContent: string): XMLImportData | null {
   try {
     // Parse simples para NFe - em produção usar xml2js ou similar
     const numeroMatch = xmlContent.match(/<nNF>(\d+)<\/nNF>/);
-    const dataMatch = xmlContent.match(/<dhEmi>([^<]+)<\/dhEmi>/);
+    const dataEmissaoMatch = xmlContent.match(/<dhEmi>([^<]+)<\/dhEmi>/);
+    const dataVencimentoMatch = xmlContent.match(/<dVenc>([^<]+)<\/dVenc>/);
     const valorMatch = xmlContent.match(/<vNF>([^<]+)<\/vNF>/);
     const cnpjMatch = xmlContent.match(/<CNPJ>(\d+)<\/CNPJ>/);
     const descricaoMatch = xmlContent.match(/<xProd>([^<]+)<\/xProd>/);
 
-    if (!numeroMatch || !dataMatch || !valorMatch || !cnpjMatch) {
+    if (!numeroMatch || !dataEmissaoMatch || !valorMatch || !cnpjMatch) {
       return null;
     }
 
-    // Extrair data (formato ISO para YYYY-MM-DD)
-    const dataEmissao = dataMatch[1].split('T')[0];
+    // Extrair data de emissão (formato ISO para YYYY-MM-DD)
+    const dataEmissao = dataEmissaoMatch[1].split('T')[0];
+    
+    // Extrair data de vencimento se disponível, senão usar data de emissão + 30 dias
+    let dataVencimento;
+    if (dataVencimentoMatch) {
+      dataVencimento = dataVencimentoMatch[1].split('T')[0];
+    } else {
+      // Se não tem data de vencimento no XML, adiciona 30 dias à data de emissão
+      const emissaoDate = new Date(dataEmissao);
+      emissaoDate.setDate(emissaoDate.getDate() + 30);
+      dataVencimento = emissaoDate.toISOString().split('T')[0];
+    }
+
+    // Parse do valor com tratamento de vírgula decimal brasileira
+    const valorString = valorMatch[1].replace(',', '.');
+    const valorBruto = parseFloat(valorString);
+
+    if (isNaN(valorBruto)) {
+      console.warn('Valor inválido no XML:', valorMatch[1]);
+      return null;
+    }
 
     return {
       fornecedor_cnpj: cnpjMatch[1],
       numero_documento: numeroMatch[1],
       data_emissao: dataEmissao,
-      valor_bruto: parseFloat(valorMatch[1]),
+      data_vencimento: dataVencimento,
+      valor_bruto: valorBruto,
       descricao_historico: descricaoMatch ? descricaoMatch[1] : 'Importado via XML'
     };
 

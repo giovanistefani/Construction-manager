@@ -36,6 +36,12 @@ export async function GET(request: NextRequest) {
     if (empresa_id) {
       whereConditions.push('f.empresa_id = ?');
       queryParams.push(empresa_id);
+    } else {
+      // Se não tiver empresa_id, retorna erro
+      return NextResponse.json(
+        { error: 'ID da empresa não encontrado no token' },
+        { status: 400 }
+      );
     }
 
     const whereClause = whereConditions.join(' AND ');

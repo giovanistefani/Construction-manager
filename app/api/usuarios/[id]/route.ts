@@ -46,11 +46,11 @@ export async function GET(
     
     const [usuarios] = await mysql.execute(query, [id]);
     
-    if (!usuarios || usuarios.length === 0) {
+    if (!usuarios || (usuarios as any[]).length === 0) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
     
-    return NextResponse.json(usuarios[0]);
+    return NextResponse.json((usuarios as any[])[0]);
     
   } catch (error) {
     console.error('Erro ao buscar usuário:', error);
@@ -115,7 +115,7 @@ export async function PUT(
       [email, nome_usuario, id]
     );
 
-    if (existingUsers && existingUsers.length > 0) {
+    if (existingUsers && (existingUsers as any[]).length > 0) {
       return NextResponse.json({ 
         error: 'E-mail ou nome de usuário já está em uso' 
       }, { status: 400 });

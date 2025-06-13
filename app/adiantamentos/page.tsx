@@ -348,10 +348,9 @@ export default function AdiantamentosPage() {
         isOpen={modalState.isOpen}
         onClose={hideModal}
         title={modalState.title}
+        message={modalState.message}
         type={modalState.type}
-      >
-        {modalState.message}
-      </Modal>
+      />
     </div>
   );
 }

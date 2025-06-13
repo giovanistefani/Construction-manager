@@ -23,7 +23,7 @@ export class AuthService {
       const perfilId = dadosUsuario.perfil_acesso_id || 'perfil_usuario_comum';
 
       // Inserir usuário
-      await connection.execute<ResultSetHeader>(
+      await connection.execute(
         `INSERT INTO Usuario (usuario_id, nome_usuario, senha_hash, email, empresa_principal_id, perfil_acesso_id, status_conta, tentativas_login_falhas) 
          VALUES (?, ?, ?, ?, ?, ?, 'Ativa', 0)`,
         [usuarioId, dadosUsuario.nome_usuario, senhaHash, dadosUsuario.email, dadosUsuario.empresa_principal_id, perfilId]
@@ -57,31 +57,31 @@ export class AuthService {
       console.log('Tentando login com:', dadosLogin.nome_usuario);
       
       // Primeiro, tentar buscar apenas o usuário
-      const [usuarios] = await connection.execute<RowDataPacket[]>(
+      const [usuarios] = await connection.execute(
         `SELECT u.* FROM Usuario u
          WHERE u.nome_usuario = ? AND u.status_conta = 'Ativa'`,
         [dadosLogin.nome_usuario]
       );
 
-      console.log('Usuários encontrados:', usuarios.length);
+      console.log('Usuários encontrados:', (usuarios as any[]).length);
 
-      if (usuarios.length === 0) {
+      if ((usuarios as any[]).length === 0) {
         // Tentar também buscar por email
-        const [usuariosPorEmail] = await connection.execute<RowDataPacket[]>(
+        const [usuariosPorEmail] = await connection.execute(
           `SELECT u.* FROM Usuario u
            WHERE u.email = ? AND u.status_conta = 'Ativa'`,
           [dadosLogin.nome_usuario]
         );
         
-        if (usuariosPorEmail.length === 0) {
+        if ((usuariosPorEmail as any[]).length === 0) {
           console.log('Nenhum usuário encontrado com esse nome/email');
           return { mensagem: 'Credenciais inválidas' };
         }
         
-        usuarios[0] = usuariosPorEmail[0];
+        (usuarios as any[])[0] = (usuariosPorEmail as any[])[0];
       }
 
-      const usuario = usuarios[0] as any;
+      const usuario = (usuarios as any[])[0] as any;
       
       console.log('Usuário encontrado:', {
         id: usuario.usuario_id,
@@ -141,13 +141,12 @@ export class AuthService {
           mensagem: 'Código de verificação enviado para seu e-mail',
           requer2FA: true,
           usuario: {
-            id: usuario.usuario_id,
+            usuario_id: usuario.usuario_id,
             email: usuario.email,
-            nomeUsuario: usuario.nome_usuario,
-            nomeCompleto: usuario.email, // Usar email como fallback se não houver nome completo
-            empresaId: usuario.empresa_principal_id || 'empresa_padrao',
-            empresaNome: 'Empresa Padrão',
-            perfilAcesso: usuario.perfil_acesso_id || 'perfil_admin'
+            nome_usuario: usuario.nome_usuario,
+            empresa_principal_id: usuario.empresa_principal_id || 'empresa_padrao',
+            empresa_nome: 'Empresa Padrão',
+            perfil_acesso: usuario.perfil_acesso_id || 'perfil_admin'
           }
         };
       }
@@ -172,13 +171,12 @@ export class AuthService {
         accessToken,
         refreshToken,
         usuario: {
-          id: usuario.usuario_id,
+          usuario_id: usuario.usuario_id,
           email: usuario.email,
-          nomeUsuario: usuario.nome_usuario,
-          nomeCompleto: usuario.email, // Usar email como fallback se não houver nome completo
-          empresaId: usuario.empresa_principal_id || 'empresa_padrao',
-          empresaNome: 'Empresa Padrão',
-          perfilAcesso: usuario.perfil_acesso_id || 'perfil_admin'
+          nome_usuario: usuario.nome_usuario,
+          empresa_principal_id: usuario.empresa_principal_id || 'empresa_padrao',
+          empresa_nome: 'Empresa Padrão',
+          perfil_acesso: usuario.perfil_acesso_id || 'perfil_admin'
         }
       };
     } finally {
@@ -189,7 +187,7 @@ export class AuthService {
   private async verificarBloqueio(usuario: any, connection: any): Promise<void> {
     if (usuario.tentativas_login_falhas >= MAX_TENTATIVAS_LOGIN) {
       // Verificar se ainda está no período de bloqueio
-      const [logs] = await connection.execute<RowDataPacket[]>(
+      const [logs] = await connection.execute(
         `SELECT * FROM AuditoriaLog 
          WHERE tabela_afetada = 'Usuario' 
          AND id_registro_afetado = ? 
@@ -199,7 +197,7 @@ export class AuthService {
         [usuario.usuario_id]
       );
 
-      if (logs.length > 0) {
+      if ((logs as any[]).length > 0) {
         throw new Error('Conta bloqueada. Tente novamente mais tarde.');
       }
     }
@@ -207,18 +205,18 @@ export class AuthService {
 
   private async incrementarTentativasFalhas(usuarioId: string, connection: any): Promise<void> {
     // Atualizar tentativas
-    await connection.execute<ResultSetHeader>(
+    await connection.execute(
       `UPDATE Usuario SET tentativas_login_falhas = tentativas_login_falhas + 1 WHERE usuario_id = ?`,
       [usuarioId]
     );
 
     // Verificar se deve bloquear
-    const [usuario] = await connection.execute<RowDataPacket[]>(
+    const [usuario] = await connection.execute(
       'SELECT tentativas_login_falhas FROM Usuario WHERE usuario_id = ?',
       [usuarioId]
     );
 
-    if (usuario[0].tentativas_login_falhas >= MAX_TENTATIVAS_LOGIN) {
+    if ((usuario as any[])[0].tentativas_login_falhas >= MAX_TENTATIVAS_LOGIN) {
       // Log de bloqueio
       await this.criarLogAuditoria(
         'Usuario',
@@ -226,7 +224,7 @@ export class AuthService {
         usuarioId,
         'Conta Bloqueada',
         null,
-        { tentativas: usuario[0].tentativas_login_falhas },
+        { tentativas: (usuario as any[])[0].tentativas_login_falhas },
         connection,
         `Conta bloqueada por ${MAX_TENTATIVAS_LOGIN} tentativas falhas`
       );
@@ -287,7 +285,7 @@ export class AuthService {
       
       /* Comentado temporariamente para debug
       // Verificar se o token ainda está ativo no log de auditoria
-      const [logs] = await pool.execute<RowDataPacket[]>(
+      const [logs] = await pool.execute(
         `SELECT * FROM AuditoriaLog 
          WHERE tabela_afetada = 'SessaoAtiva' 
          AND usuario_id = ? 
@@ -341,14 +339,14 @@ export class AuthService {
       console.log('Iniciando recuperação de senha para:', email);
       
       // Verificar se o usuário existe
-      const [usuarios] = await connection.execute<RowDataPacket[]>(
+      const [usuarios] = await connection.execute(
         'SELECT usuario_id, email, nome_usuario FROM Usuario WHERE email = ? AND status_conta = "Ativa"',
         [email]
       );
 
-      console.log('Usuários encontrados:', usuarios.length);
+      console.log('Usuários encontrados:', (usuarios as any[]).length);
 
-      if (usuarios.length === 0) {
+      if ((usuarios as any[]).length === 0) {
         console.log('Nenhum usuário encontrado com este email');
         
         // Se o email for o de teste, criar um usuário temporário
@@ -412,7 +410,7 @@ export class AuthService {
         };
       }
 
-      const usuario = usuarios[0];
+      const usuario = (usuarios as any[])[0];
       const token = uuidv4();
 
       console.log('Gerando token para usuário:', usuario.usuario_id);
@@ -453,7 +451,7 @@ export class AuthService {
     const connection = await pool.getConnection();
     try {
       // Buscar token válido no log de auditoria
-      const [tokens] = await connection.execute<RowDataPacket[]>(
+      const [tokens] = await connection.execute(
         `SELECT * FROM AuditoriaLog 
          WHERE tabela_afetada = 'RecuperacaoSenha' 
          AND tipo_acao = 'Token Redefinição Criado'
@@ -464,11 +462,11 @@ export class AuthService {
         [token]
       );
 
-      if (tokens.length === 0) {
+      if ((tokens as any[]).length === 0) {
         return false;
       }
 
-      const tokenLog = tokens[0];
+      const tokenLog = (tokens as any[])[0];
       // dados_novos já é um objeto, não precisa fazer parse
       const dadosToken = typeof tokenLog.dados_novos === 'string' 
         ? JSON.parse(tokenLog.dados_novos) 
@@ -517,18 +515,18 @@ export class AuthService {
     console.log('Verificando token de recuperação:', token);
     
     // Primeiro, vamos ver todos os tokens de recuperação que existem
-    const [todosTokens] = await pool.execute<RowDataPacket[]>(
+    const [todosTokens] = await pool.execute(
       `SELECT * FROM AuditoriaLog 
        WHERE tabela_afetada = 'RecuperacaoSenha' 
        AND tipo_acao = 'Token Redefinição Criado'
        ORDER BY data_hora DESC LIMIT 5`
     );
     
-    console.log('Todos os tokens de recuperação recentes:', todosTokens.length);
-    if (todosTokens.length === 0) {
+    console.log('Todos os tokens de recuperação recentes:', (todosTokens as any[]).length);
+    if ((todosTokens as any[]).length === 0) {
       console.log('PROBLEMA: Nenhum token de recuperação encontrado no banco!');
     } else {
-      todosTokens.forEach((t, i) => {
+      (todosTokens as any[]).forEach((t, i) => {
         console.log(`Token ${i + 1}:`, {
           id: t.log_id,
           dados_novos: t.dados_novos,
@@ -538,7 +536,7 @@ export class AuthService {
       });
     }
     
-    const [tokens] = await pool.execute<RowDataPacket[]>(
+    const [tokens] = await pool.execute(
       `SELECT * FROM AuditoriaLog 
        WHERE tabela_afetada = 'RecuperacaoSenha' 
        AND tipo_acao = 'Token Redefinição Criado'
@@ -548,12 +546,12 @@ export class AuthService {
       [token]
     );
 
-    console.log('Tokens encontrados na verificação com filtros:', tokens.length);
-    if (tokens.length > 0) {
-      console.log('Token válido encontrado:', tokens[0]);
+    console.log('Tokens encontrados na verificação com filtros:', (tokens as any[]).length);
+    if ((tokens as any[]).length > 0) {
+      console.log('Token válido encontrado:', (tokens as any[])[0]);
     }
 
-    return tokens.length > 0;
+    return (tokens as any[]).length > 0;
   }
 
   private gerarCodigo2FA(): string {
@@ -562,7 +560,7 @@ export class AuthService {
 
   private async verificar2FAAtivo(usuarioId: string): Promise<boolean> {
     // Verificar no log se 2FA foi ativado para este usuário
-    const [logs] = await pool.execute<RowDataPacket[]>(
+    const [logs] = await pool.execute(
       `SELECT * FROM AuditoriaLog 
        WHERE tabela_afetada = 'Usuario' 
        AND id_registro_afetado = ?
@@ -572,18 +570,18 @@ export class AuthService {
     );
 
     // Verificar se não foi desativado depois
-    if (logs.length > 0) {
-      const [desativado] = await pool.execute<RowDataPacket[]>(
+    if ((logs as any[]).length > 0) {
+      const [desativado] = await pool.execute(
         `SELECT * FROM AuditoriaLog 
          WHERE tabela_afetada = 'Usuario' 
          AND id_registro_afetado = ?
          AND tipo_acao = '2FA Desativado'
          AND data_hora > ?
          ORDER BY data_hora DESC LIMIT 1`,
-        [usuarioId, logs[0].data_hora]
+        [usuarioId, (logs as any[])[0].data_hora]
       );
 
-      return desativado.length === 0;
+      return (desativado as any[]).length === 0;
     }
 
     return false;
@@ -611,7 +609,7 @@ export class AuthService {
       console.log('Verificando código 2FA:', { usuarioId, codigo });
       
       // Primeiro, vamos ver todos os códigos disponíveis para debug
-      const [todosCodigos] = await connection.execute<RowDataPacket[]>(
+      const [todosCodigos] = await connection.execute(
         `SELECT * FROM AuditoriaLog 
          WHERE tabela_afetada = 'Codigo2FA' 
          AND usuario_id = ?
@@ -620,7 +618,7 @@ export class AuthService {
         [usuarioId]
       );
       
-      console.log('Códigos encontrados para o usuário:', todosCodigos.map(c => ({
+      console.log('Códigos encontrados para o usuário:', (todosCodigos as any[]).map(c => ({
         data_hora: c.data_hora,
         codigo: c.dados_novos?.codigo,
         expira_em: c.dados_novos?.expira_em,
@@ -628,7 +626,7 @@ export class AuthService {
       })));
 
       // Buscar todos os códigos não usados do usuário e filtrar no código
-      const [codigos] = await connection.execute<RowDataPacket[]>(
+      const [codigos] = await connection.execute(
         `SELECT * FROM AuditoriaLog 
          WHERE tabela_afetada = 'Codigo2FA' 
          AND usuario_id = ?
@@ -639,7 +637,7 @@ export class AuthService {
       );
 
       // Filtrar no código para encontrar o código correto e ainda válido
-      const codigoValido = codigos.find(c => {
+      const codigoValido = (codigos as any[]).find(c => {
         const dadosNovos = c.dados_novos;
         if (!dadosNovos) return false;
         
@@ -658,7 +656,7 @@ export class AuthService {
         return codigoArmazenado === codigo && expiraEm > agora;
       });
 
-      console.log('Códigos disponíveis:', codigos.length);
+      console.log('Códigos disponíveis:', (codigos as any[]).length);
 
       if (!codigoValido) {
         console.log('Nenhum código válido encontrado');
@@ -703,7 +701,7 @@ export class AuthService {
   }
 
   async obterStatusUsuario(usuarioId: string): Promise<any> {
-    const [usuarios] = await pool.execute<RowDataPacket[]>(
+    const [usuarios] = await pool.execute(
       `SELECT u.usuario_id, u.email, u.nome_usuario, u.empresa_principal_id,
               e.nome_fantasia as empresa_nome, p.nome_perfil
        FROM Usuario u
@@ -713,9 +711,9 @@ export class AuthService {
       [usuarioId]
     );
 
-    if (usuarios.length === 0) return null;
+    if ((usuarios as any[]).length === 0) return null;
 
-    const usuario = usuarios[0];
+    const usuario = (usuarios as any[])[0];
     
     // Verificar se 2FA está ativo
     const tem2FA = await this.verificar2FAAtivo(usuarioId);
@@ -732,12 +730,12 @@ export class AuthService {
   }
 
   async obterPrimeiraEmpresaAtiva(): Promise<any> {
-    const [empresas] = await pool.execute<RowDataPacket[]>(
+    const [empresas] = await pool.execute(
       'SELECT empresa_id, nome_fantasia FROM Empresa WHERE status_empresa = "Ativa" LIMIT 1'
     );
     
-    if (empresas.length > 0) {
-      return empresas[0];
+    if ((empresas as any[]).length > 0) {
+      return (empresas as any[])[0];
     }
 
     // Se não existir empresa, criar uma empresa padrão

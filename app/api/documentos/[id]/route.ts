@@ -4,7 +4,7 @@ import mysql from '@/lib/db/mysql';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -13,18 +13,23 @@ export async function GET(
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { usuarioId: string; empresaId: string };
+    
+    if (!decoded.empresaId) {
+      return NextResponse.json({ erro: 'Token inválido: empresaId não encontrado' }, { status: 401 });
+    }
 
+    const resolvedParams = await params;
     const [documents] = await mysql.execute(
       `SELECT 
         d.*,
         f.nome_fantasia as fornecedor_nome,
-        u.nome as usuario_nome
+        u.nome_usuario as usuario_nome
       FROM DocumentoCobranca d
       INNER JOIN Fornecedor f ON d.fornecedor_id = f.fornecedor_id
       INNER JOIN Usuario u ON d.usuario_registro_id = u.usuario_id
       WHERE d.documento_id = ? AND d.empresa_id = ?`,
-      [params.id, decoded.empresa_id]
+      [resolvedParams.id, decoded.empresaId]
     );
 
     if ((documents as any[]).length === 0) {
@@ -34,7 +39,7 @@ export async function GET(
     // Buscar anexos
     const [anexos] = await mysql.execute(
       `SELECT * FROM AnexoDocumento WHERE documento_id = ? ORDER BY data_upload DESC`,
-      [params.id]
+      [resolvedParams.id]
     );
 
     const documento = (documents as any[])[0];
@@ -50,7 +55,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -59,14 +64,19 @@ export async function PUT(
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { usuarioId: string; empresaId: string };
+    
+    if (!decoded.empresaId) {
+      return NextResponse.json({ erro: 'Token inválido: empresaId não encontrado' }, { status: 401 });
+    }
 
     const data = await request.json();
 
+    const resolvedParams = await params;
     // Verificar se documento existe e pertence à empresa
     const [existingDoc] = await mysql.execute(
       'SELECT status_documento FROM DocumentoCobranca WHERE documento_id = ? AND empresa_id = ?',
-      [params.id, decoded.empresa_id]
+      [resolvedParams.id, decoded.empresaId]
     );
 
     if ((existingDoc as any[]).length === 0) {
@@ -109,7 +119,7 @@ export async function PUT(
       return NextResponse.json({ erro: 'Nenhum campo para atualizar' }, { status: 400 });
     }
 
-    updateValues.push(params.id, decoded.empresa_id);
+    updateValues.push(resolvedParams.id, decoded.empresaId);
 
     await mysql.execute(
       `UPDATE DocumentoCobranca SET ${updateFields.join(', ')} 
@@ -127,7 +137,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -136,12 +146,17 @@ export async function DELETE(
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { usuarioId: string; empresaId: string };
+    
+    if (!decoded.empresaId) {
+      return NextResponse.json({ erro: 'Token inválido: empresaId não encontrado' }, { status: 401 });
+    }
 
+    const resolvedParams = await params;
     // Verificar se documento existe e pode ser cancelado
     const [existingDoc] = await mysql.execute(
       'SELECT status_documento FROM DocumentoCobranca WHERE documento_id = ? AND empresa_id = ?',
-      [params.id, decoded.empresa_id]
+      [resolvedParams.id, decoded.empresaId]
     );
 
     if ((existingDoc as any[]).length === 0) {
@@ -155,7 +170,7 @@ export async function DELETE(
 
     await mysql.execute(
       'UPDATE DocumentoCobranca SET status_documento = "Cancelado" WHERE documento_id = ? AND empresa_id = ?',
-      [params.id, decoded.empresa_id]
+      [resolvedParams.id, decoded.empresaId]
     );
 
     return NextResponse.json({ message: 'Documento cancelado com sucesso' });

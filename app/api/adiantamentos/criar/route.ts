@@ -12,7 +12,11 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { usuario_id: string; empresa_id: string };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    
+    // Normalizar campos do token
+    const empresa_id = decoded.empresa_id || decoded.empresaId || decoded.empresa_principal_id;
+    const usuario_id = decoded.usuario_id || decoded.usuarioId;
 
     const data: CreateAdiantamentoData = await request.json();
 
@@ -28,7 +32,7 @@ export async function POST(request: NextRequest) {
     // Verificar se fornecedor existe e pertence à empresa
     const [fornecedorCheck] = await mysql.execute(
       'SELECT fornecedor_id FROM Fornecedor WHERE fornecedor_id = ? AND empresa_id = ?',
-      [data.fornecedor_id, decoded.empresa_id]
+      [data.fornecedor_id, empresa_id]
     );
 
     if ((fornecedorCheck as unknown[]).length === 0) {
@@ -44,7 +48,7 @@ export async function POST(request: NextRequest) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, 'Ativo')`,
       [
         adiantamento_id,
-        decoded.empresa_id,
+        empresa_id,
         data.fornecedor_id,
         data.data_adiantamento,
         data.valor_adiantamento,

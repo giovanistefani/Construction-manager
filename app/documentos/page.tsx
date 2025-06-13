@@ -130,7 +130,8 @@ export default function DocumentosPage() {
     }).format(value);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return null;
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
@@ -285,7 +286,9 @@ export default function DocumentosPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div>Emissão: {formatDate(documento.data_emissao)}</div>
-                        <div>Vencimento: {formatDate(documento.data_vencimento)}</div>
+                        {documento.data_vencimento && (
+                          <div>Vencimento: {formatDate(documento.data_vencimento)}</div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {formatCurrency(documento.valor_bruto)}
@@ -340,12 +343,14 @@ export default function DocumentosPage() {
                         {formatCurrency(documento.valor_bruto)}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-gray-500">Vencimento:</span>
-                      <span className="ml-2 text-gray-900">
-                        {formatDate(documento.data_vencimento)}
-                      </span>
-                    </div>
+                    {documento.data_vencimento && (
+                      <div>
+                        <span className="text-gray-500">Vencimento:</span>
+                        <span className="ml-2 text-gray-900">
+                          {formatDate(documento.data_vencimento)}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-gray-200">
@@ -393,10 +398,9 @@ export default function DocumentosPage() {
         isOpen={modalState.isOpen}
         onClose={hideModal}
         title={modalState.title}
+        message={modalState.message}
         type={modalState.type}
-      >
-        {modalState.message}
-      </Modal>
+      />
     </div>
   );
 }

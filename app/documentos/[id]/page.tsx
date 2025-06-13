@@ -12,12 +12,6 @@ export default function DocumentoDetalhesPage() {
   const [loading, setLoading] = useState(true);
   const [uploadingFile, setUploadingFile] = useState(false);
 
-  useEffect(() => {
-    if (params.id) {
-      loadDocumento();
-    }
-  }, [params.id, loadDocumento]);
-
   const loadDocumento = useCallback(async () => {
     try {
       setLoading(true);
@@ -40,6 +34,12 @@ export default function DocumentoDetalhesPage() {
       setLoading(false);
     }
   }, [params.id, router]);
+
+  useEffect(() => {
+    if (params.id) {
+      loadDocumento();
+    }
+  }, [params.id, loadDocumento]);
 
   const handleFileUpload = async (file: File) => {
     try {
@@ -139,7 +139,8 @@ export default function DocumentoDetalhesPage() {
     }).format(value);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return null;
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
@@ -248,12 +249,14 @@ export default function DocumentoDetalhesPage() {
                   <p className="text-gray-900">{formatDate(documento.data_emissao)}</p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">
-                    Data de Vencimento
-                  </label>
-                  <p className="text-gray-900">{formatDate(documento.data_vencimento)}</p>
-                </div>
+                {documento.data_vencimento && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                      Data de Vencimento
+                    </label>
+                    <p className="text-gray-900">{formatDate(documento.data_vencimento)}</p>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">

@@ -10,7 +10,11 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { usuario_id: string; empresa_id: string };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    
+    // Normalizar campos do token
+    const empresa_id = decoded.empresa_id || decoded.empresaId || decoded.empresa_principal_id;
+    const usuario_id = decoded.usuario_id || decoded.usuarioId;
 
     const { searchParams } = new URL(request.url);
     const fornecedor_id = searchParams.get('fornecedor_id');
@@ -20,42 +24,37 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     const whereConditions = ['a.empresa_id = ?'];
-    const queryParams: (string | number)[] = [decoded.empresa_id];
+    const queryParams: (string | number)[] = [empresa_id];
 
-    if (fornecedor_id) {
+    if (fornecedor_id && fornecedor_id !== '') {
       whereConditions.push('a.fornecedor_id = ?');
       queryParams.push(fornecedor_id);
     }
 
-    if (status) {
+    if (status && status !== '') {
       whereConditions.push('a.status_adiantamento = ?');
       queryParams.push(status);
     }
 
     const whereClause = whereConditions.join(' AND ');
 
-    const adiantamentosQuery = `
+    const baseQuery = `
       SELECT 
         a.*,
-        f.nome_fantasia as fornecedor_nome
+        COALESCE(f.nome_fantasia, f.razao_social_nome) as fornecedor_nome
       FROM AdiantamentoFornecedor a
       INNER JOIN Fornecedor f ON a.fornecedor_id = f.fornecedor_id
       WHERE ${whereClause}
-      ORDER BY a.data_adiantamento DESC
-      LIMIT ? OFFSET ?
     `;
 
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM AdiantamentoFornecedor a
-      WHERE ${whereClause}
-    `;
+    const adiantamentosQuery = `${baseQuery} ORDER BY a.data_adiantamento DESC LIMIT ${limit} OFFSET ${offset}`;
+    const countQuery = `SELECT COUNT(*) as total FROM AdiantamentoFornecedor a WHERE ${whereClause}`;
 
-    // Garantir que não temos undefined nos parâmetros
-    const finalQueryParams = [...queryParams, limit, offset];
+    // Filtrar parâmetros undefined
+    const cleanParams = queryParams.filter(param => param !== undefined && param !== null);
     
-    const [adiantamentos] = await mysql.execute(adiantamentosQuery, finalQueryParams);
-    const [countResult] = await mysql.execute(countQuery, queryParams);
+    const [adiantamentos] = await mysql.execute(adiantamentosQuery, cleanParams);
+    const [countResult] = await mysql.execute(countQuery, cleanParams);
 
     const total = (countResult as { total: number }[])[0].total;
     const totalPages = Math.ceil(total / limit);

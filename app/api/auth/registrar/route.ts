@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       [body.empresa_principal_id]
     );
 
-    if (empresaExists.length === 0) {
+    if ((empresaExists as any[]).length === 0) {
       return NextResponse.json(
         { erro: 'Empresa não encontrada ou inativa' },
         { status: 400 }
